@@ -1,0 +1,21 @@
+<div class="instructions">
+    Wide DHCPv6-PD Configuration
+</div>
+
+<fieldset name="wide-dhcpv6" class="primary expanded">
+    <legend>Configure the Kame wide-dhcpv6-client daemon (NOTE: Currently only supports 1 WAN-LAN mapping</legend>
+    <div class="addable" data-min="0" data-max="10" data-object="dhcpv6-config" data-objectify="1">
+        <div class="addable-template">
+            <div class="multi">
+                <span class="text">Internal interface</span>
+                <span><select name="dhcpv6-lan" /></span>
+                <span class="text">External interface</span>
+                <span><select name="dhcpv6-wan" /></span>
+            </div>
+        </div>
+        <div class="addable-container">
+            <!-- the addables will be inserted here -->
+        </div>
+        <button type="button" class="addable-add">Add New</button>
+    </div>
+</fieldset>

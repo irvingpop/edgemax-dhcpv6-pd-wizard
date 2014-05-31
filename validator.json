@@ -1,0 +1,12 @@
+{
+    "rules": {
+        "dhcpv6-lan": {
+            "required": true,
+            "interfaceName": 1
+        },
+        "dhcpv6-wan": {
+            "required": true,
+            "interfaceName": 1
+        }
+    }
+}

@@ -1,0 +1,280 @@
+#!/bin/bash
+
+ACTION=$1
+INPUT=$2
+
+pfx="firewall options mss-clamp"
+cmd=/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper
+cli=cli-shell-api
+
+load () {
+    int=`cat /var/lib/dhcpv6/internal-interface`
+    ext=`cat /var/lib/dhcpv6/external-interface`
+    str=''
+    [ -n "$str" ] && str+=','
+    str+="{\"dhcpv6-lan\":\"$int\",\"dhcpv6-wan\":\"$ext\"}"
+
+    intfs=($(ls /sys/class/net/ | grep -v '^lo$'))
+    ilist=''
+    for int in "${intfs[@]}"; do
+        [ -n "$ilist" ] && ilist+=','
+        ilist+="\"$int\""
+    done
+    ilist="{\"options\":[$ilist],\"other\":\"true\"}"
+
+    echo -n "{\"success\":\"1\",\"data\":{\"dhcpv6-config\":[$str]},"
+    echo "\"definition\":{\"dhcpv6-lan\":$ilist,\"dhcpv6-wan\":$ilist}}"
+}
+
+apply () {
+    local ret=0
+    local output=''
+    local -A ints
+
+    eval "nints=($(cat $INPUT | jq '."dhcpv6-config"[]."dhcpv6-lan"'))"
+    eval "nexts=($(cat $INPUT | jq '."dhcpv6-config"[]."dhcpv6-wan"'))"
+
+    for ((i = 0; i < ${#nints[@]}; i++)); do
+        int="${nints[i]}"
+        ext="${nexts[i]}"
+        if [ "$int" == "$ext" ]; then
+            ret=1
+            output='Internal and external interfaces cannot be the same'
+            break
+        fi
+        if [ -n "${ints[$int]}" ]; then
+            ret=1
+            output='The same internal interface can only be in one entry'
+            break
+        fi
+        ints[$int]=1
+    done
+
+    if [ $ret == 0 ]; then
+        echo ${nints[0]} > /var/lib/dhcpv6/internal-interface
+        echo ${nexts[0]} > /var/lib/dhcpv6/external-interface
+
+        cat > /etc/sysctl.d/40-ipv6.conf <<EOF
+net.ipv6.conf.${nexts[0]}.accept_ra=2
+EOF
+
+        cat > /etc/default/wide-dhcpv6-client <<EOF
+INTERFACES="${nexts[0]}"
+EOF
+
+        cat > /etc/wide-dhcpv6/dhcp6c.conf <<EOF
+interface ${nexts[0]} {
+  request domain-name-servers, domain-name;
+  send ia-na 0;
+  send ia-pd 0;
+  send rapid-commit;
+  script "/etc/wide-dhcpv6/dhcp6c-script";
+};
+
+id-assoc pd 0 {
+  prefix-interface ${nints[0]} {
+    sla-id 0;
+    sla-len 0;
+  };
+};
+
+id-assoc na 0 { };
+EOF
+
+        cat > /etc/wide-dhcpv6/dhcp6c-script <<EOF
+#!/bin/sh
+# dhcp6c-script for Debian/Ubuntu. Jérémie Corbier, April, 2006.
+# resolvconf support by Mattias Guns, May 2006.
+
+RESOLVCONF="/sbin/resolvconf"
+
+[ -f /etc/default/wide-dhcpv6-client ] && . /etc/default/wide-dhcpv6-client
+
+if [ -n "\$new_domain_name" -o -n "\$new_domain_name_servers" ]; then
+    old_resolv_conf=/etc/resolv.conf
+    new_resolv_conf=/etc/resolv.conf.dhcp6c-new
+    rm -f \$new_resolv_conf
+    if [ -n "\$new_domain_name" ]; then
+        echo search \$new_domain_name >> \$new_resolv_conf
+    fi
+    if [ -n "\$new_domain_name_servers" ]; then
+        for nameserver in \$new_domain_name_servers; do
+            # No need to add an already existing nameserver
+            res=\$(grep "nameserver \$nameserver" \$old_resolv_conf)
+            if [ -z "\$res" ]; then
+                echo nameserver \$nameserver >> \$new_resolv_conf
+            fi
+        done
+    fi
+
+    # Use resolvconf if available
+    if [ -h "\$old_resolv_conf" -a -x "\$RESOLVCONF" ]; then
+        for IFACE in \$INTERFACES; do
+            cat \$new_resolv_conf | \$RESOLVCONF -a \$IFACE
+        done
+    else
+        # To preserve IPv4 informations...
+        cat \$old_resolv_conf >> \$new_resolv_conf
+        chown --reference=\$old_resolv_conf \$new_resolv_conf
+        chmod --reference=\$old_resolv_conf \$new_resolv_conf
+        mv -f \$new_resolv_conf \$old_resolv_conf
+    fi
+fi
+
+/etc/init.d/radvd restart
+
+exit 0
+EOF
+
+        cat > /etc/wide-dhcpv6/dhcp6c-ifupdown <<EOF
+#!/bin/sh
+# Updates information whenever a network interface is brought up.
+
+[ "\$IFACE" = "lo" ] && exit 0
+[ -r /etc/default/wide-dhcpv6-client ] || exit 0
+[ -x /usr/sbin/dhcp6ctl ] || exit 0
+
+# Check if dhcp6c is running
+pidof dhcp6c > /dev/null 2>&1 ; [ \$? -eq 1 ] && exit 0
+
+. /etc/default/wide-dhcpv6-client
+
+case \$MODE in
+    start|stop)
+        for i in \$INTERFACES ; do
+            if [ "\$IFACE" = "\$i" ] ; then
+                /usr/sbin/dhcp6ctl \$MODE interface \$IFACE
+                /etc/init.d/radvd restart
+                exit 0
+            fi
+        done
+    ;;
+    *)
+        if [ "\$VERBOSITY" = "1" ] ; then
+            echo "dhcp6c-ifupdown: unknown mode \"\$MODE\""
+        fi
+        exit 1
+    ;;
+esac
+EOF
+
+        cat > /etc/init.d/wide-dhcpv6-client <<EOF
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          wide-dhcpv6-client
+# Required-Start:    \$syslog \$network \$remote_fs \$all
+# Required-Stop:     \$syslog \$remote_fs
+# Should-Start:      \$local_fs
+# Should-Stop:       \$local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/Stop WIDE DHCPv6 client
+# Description:       (empty)
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DHCP6CBIN=/usr/sbin/dhcp6c
+DHCP6CPID=/var/run/dhcp6c.pid
+NAME="dhcp6c"
+DESC="WIDE DHCPv6 client"
+
+. /lib/lsb/init-functions
+
+test -x \$DHCP6CBIN || exit 0
+
+if [ ! -f /etc/default/wide-dhcpv6-client ]; then
+    log_failure_msg \\
+        "/etc/default/wide-dhcpv6-client does not exist! - Aborting..."
+    log_failure_msg \\
+        "Run 'dpkg-reconfigure wide-dhcpv6-client' to fix the problem."
+    exit 3
+else
+    . /etc/default/wide-dhcpv6-client
+fi
+
+
+[ "X\$INTERFACES" != "X" ] || exit 0
+
+# single arg is -v for messages, -q for none
+check_status()
+{
+    if [ ! -r "\$DHCP6CPID" ]; then
+        test "\$1" != -v || echo "\$NAME is not running."
+        return 3
+    fi
+    if read pid < "\$DHCP6CPID" && ps -p "\$pid" > /dev/null 2>&1; then
+        test "\$1" != -v || echo "\$NAME is running."
+        return 0
+    else
+        test "\$1" != -v || echo "\$NAME is not running but \$DHCP6CPID exists."
+        return 1
+    fi
+}
+
+case "\$1" in
+    start)
+        log_daemon_msg "Starting \$DESC" "\$NAME"
+        start-stop-daemon --start --quiet --pidfile \$DHCP6CPID \\
+            --oknodo --exec \$DHCP6CBIN -- -Pdefault \$INTERFACES
+        sleep 2
+        if check_status -q; then
+            log_end_msg 0
+        else
+            log_end_msg 1
+            exit 1
+        fi
+        ;;
+    stop)
+        log_daemon_msg "Stopping \$DESC" "\$NAME"
+        start-stop-daemon --stop --quiet --pidfile \$DHCP6CPID --oknodo
+        log_end_msg \$?
+        rm -f \$DHCP6CPID
+        ;;
+    restart|force-reload)
+        \$0 stop
+        sleep 2
+        \$0 start
+        if [ "\$?" != "0" ]; then
+            exit 1
+        fi
+        ;;
+    status)
+        echo "Status of \$NAME: "
+        check_status -v
+        exit "\$?"
+        ;;
+    *)
+        echo "Usage: \$0 (start|stop|restart|force-reload|status)"
+        exit 1
+esac
+
+exit 0
+EOF
+
+        update-rc.d wide-dhcpv6-client defaults > /dev/null 2>&1
+        if [ `/usr/sbin/service wide-dhcpv6-client status` ]; then
+            output=`/usr/sbin/service wide-dhcpv6-client restart 2>&1`
+            ret=$?
+        else
+            output=`/usr/sbin/service wide-dhcpv6-client start 2>&1`
+            ret=$?
+        fi
+
+    fi
+
+    if [ $ret == 0 ]; then
+        echo "{\"success\":\"1\"}"
+    else
+        echo "{\"success\":\"0\",\"error\": \"${output//\"/\'}\"}"
+    fi
+
+}
+
+case "$ACTION" in
+    load)
+        load
+        ;;
+    apply)
+        apply
+        ;;
+esac
