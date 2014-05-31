@@ -37,3 +37,8 @@ Known to work with 1.4.x and 1.5.x firmware
   /var/www/wizard/feature/wide-dhcpv6-client/wizard-run
   /var/www/wizard/feature/wide-dhcpv6-client/wizard.html
   ```
+
+TODO
+====
+* Handling of multiple Prefix Delegations
+* Figure out better way to persist this data and installation across firmware upgrades
