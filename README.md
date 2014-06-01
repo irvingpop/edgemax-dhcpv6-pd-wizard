@@ -38,6 +38,7 @@ Download https://github.com/irvingpop/edgemax-dhcpv6-pd-wizard/archive/master.ta
 
 #### Developer installation:
 Git clone and scp these files into `/var/www/wizard/feature/wide-dhcpv6-client` on your EdgeMax device.
+
   ```
   /var/www/wizard/feature/wide-dhcpv6-client/validator.json
   /var/www/wizard/feature/wide-dhcpv6-client/wizard-run
@@ -56,6 +57,7 @@ TODO
 * IPv6 status reporting in the Wizard UI
 * Automatic detection/setting of router-advert settings
 * Automatic detection/setting of non-foot-shooting IPv6 LOCAL Firewall rules.  Example:
+
   ```
   set firewall ipv6-name WAN6_LOCAL default-action drop
   set firewall ipv6-name WAN6_LOCAL description 'IPv6 Internet to router'
