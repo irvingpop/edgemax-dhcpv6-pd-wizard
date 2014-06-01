@@ -31,14 +31,47 @@ Known to work with 1.4.x and 1.5.x firmware
   set protocols static interface-route6 '::/0' next-hop-interface eth0
   ```
 
-2. Install these files into `/var/www/wizard/feature/wide-dhcpv6-client` on your EdgeMax device.
+2. Download and install the feature wizard
+
+#### End user installation:
+Download https://github.com/irvingpop/edgemax-dhcpv6-pd-wizard/archive/master.tar.gz and upload to https://your-router/#Wizard (click on the + symbol next to Feature Wizards in the left-hand pane)
+
+#### Developer installation:
+Git clone and scp these files into `/var/www/wizard/feature/wide-dhcpv6-client` on your EdgeMax device.
   ```
   /var/www/wizard/feature/wide-dhcpv6-client/validator.json
   /var/www/wizard/feature/wide-dhcpv6-client/wizard-run
   /var/www/wizard/feature/wide-dhcpv6-client/wizard.html
   ```
 
+#### Settings:
+* Internal interface:  Your LAN interface (currently only one supported)
+* External interface:  Your WAN interface (currently only one supported)
+
+
 TODO
 ====
 * Handling of multiple Prefix Delegations
-* Figure out better way to persist this data and installation across firmware upgrades
+* Better integration with UBNT/Vayatta system (Persist this data and installation across firmware upgrades, CLI integration, etc)
+* IPv6 status reporting in the Wizard UI
+* Automatic detection/setting of router-advert settings
+* Automatic detection/setting of non-foot-shooting IPv6 LOCAL Firewall rules.  Example:
+  ```
+  set firewall ipv6-name WAN6_LOCAL default-action drop
+  set firewall ipv6-name WAN6_LOCAL description 'IPv6 Internet to router'
+  set firewall ipv6-name WAN6_LOCAL enable-default-log
+  set firewall ipv6-name WAN6_LOCAL rule 1 action accept
+  set firewall ipv6-name WAN6_LOCAL rule 1 state established enable
+  set firewall ipv6-name WAN6_LOCAL rule 1 state related enable
+  set firewall ipv6-name WAN6_LOCAL rule 2 action accept
+  set firewall ipv6-name WAN6_LOCAL rule 2 description ICMPv6
+  set firewall ipv6-name WAN6_LOCAL rule 2 limit burst 1
+  set firewall ipv6-name WAN6_LOCAL rule 2 protocol icmpv6
+  set firewall ipv6-name WAN6_LOCAL rule 3 action accept
+  set firewall ipv6-name WAN6_LOCAL rule 3 description 'for DHCPv6'
+  set firewall ipv6-name WAN6_LOCAL rule 3 destination port 546-547
+  set firewall ipv6-name WAN6_LOCAL rule 3 protocol udp
+  set firewall ipv6-name WAN6_LOCAL rule 100 action drop
+  set firewall ipv6-name WAN6_LOCAL rule 100 log enable
+  set firewall ipv6-name WAN6_LOCAL rule 100 state invalid enable
+  ```
