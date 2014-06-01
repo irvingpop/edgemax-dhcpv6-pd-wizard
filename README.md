@@ -1,7 +1,7 @@
 edgemax-dhcpv6-pd-wizard
 ========================
 
-Feature Wizard for DHCPv6-PD on Ubiquity EdgeMax Routers. Tested and validated on my home Comcast IPv6 environment.
+Feature Wizard for DHCPv6-PD on Ubiquiti EdgeMax Routers. Tested and validated on my home Comcast IPv6 environment.
 
 Development status
 ==================
