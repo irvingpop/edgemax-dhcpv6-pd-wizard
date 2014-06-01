@@ -54,6 +54,8 @@ apply () {
         echo ${nints[0]} > /var/lib/dhcpv6/internal-interface
         echo ${nexts[0]} > /var/lib/dhcpv6/external-interface
 
+        # Enable WAN interface to accept Router Advertisement even if forwarding is enabled
+        sysctl -w net.ipv6.conf.${nexts[0]}.accept_ra=2 > /dev/null 2>&1
         cat > /etc/sysctl.d/40-ipv6.conf <<EOF
 net.ipv6.conf.${nexts[0]}.accept_ra=2
 EOF
