@@ -34,7 +34,9 @@ Known to work with 1.4.x and 1.5.x firmware
 2. Download and install the feature wizard
 
 #### End user installation:
-Download https://github.com/irvingpop/edgemax-dhcpv6-pd-wizard/archive/master.tar.gz and upload to https://your-router/#Wizard (click on the + symbol next to Feature Wizards in the left-hand pane)
+* Download https://github.com/irvingpop/edgemax-dhcpv6-pd-wizard/archive/master.tar.gz file
+* Uncompress it (`gzip -d`) so that it simply `master.tar`
+* upload `master.tar` to https://your-router/#Wizard (click on the + symbol next to Feature Wizards in the left-hand pane)
 
 #### Developer installation:
 Git clone and scp these files into `/var/www/wizard/feature/wide-dhcpv6-client` on your EdgeMax device.
