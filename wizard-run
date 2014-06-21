@@ -123,6 +123,7 @@ if [ -n "\$new_domain_name" -o -n "\$new_domain_name_servers" ]; then
     fi
 fi
 
+sleep 5
 /etc/init.d/radvd restart
 
 exit 0
@@ -146,6 +147,7 @@ case \$MODE in
         for i in \$INTERFACES ; do
             if [ "\$IFACE" = "\$i" ] ; then
                 /usr/sbin/dhcp6ctl \$MODE interface \$IFACE
+                sleep 5
                 /etc/init.d/radvd restart
                 exit 0
             fi
