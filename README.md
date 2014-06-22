@@ -39,7 +39,7 @@ Known to work with 1.4.x and 1.5.x firmware
 * upload `master.tar` to https://your-router/#Wizard (click on the + symbol next to Feature Wizards in the left-hand pane)
 
 #### Developer installation:
-Git clone and scp these files into `/var/www/wizard/feature/wide-dhcpv6-client` on your EdgeMax device.
+Git clone and scp these files into `/config/wizard/feature/dhcpv6-pd` on your EdgeMax device.
 
   ```
   /var/www/wizard/feature/wide-dhcpv6-client/validator.json
