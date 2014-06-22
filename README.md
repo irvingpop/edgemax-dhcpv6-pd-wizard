@@ -34,7 +34,7 @@ Known to work with 1.4.x and 1.5.x firmware
 2. Download and install the feature wizard
 
 #### End user installation:
-* Download https://github.com/irvingpop/edgemax-dhcpv6-pd-wizard/archive/master.tar.gz file
+* Download the wizard .tar file: https://github.com/irvingpop/edgemax-dhcpv6-pd-wizard/releases/download/v0.0.1/edgemax-dhcpv6-pd-wizard-0.0.1.tar
 * Uncompress it (`gzip -d`) so that it simply `master.tar`
 * upload `master.tar` to https://your-router/#Wizard (click on the + symbol next to Feature Wizards in the left-hand pane)
 
